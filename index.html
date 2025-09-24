@@ -337,7 +337,7 @@
                                 <li key={index} className="list-group-item">
                                     <p><strong>Date:</strong> {form.date}</p>
                                     <p><strong>Project/Course:</strong> {form.formData.projectOrCourse}</p>
-                                    <InstructorFeedback form={form} user={user} />
+                                    { (form.feedback.score || form.feedback.comments) && <InstructorFeedback form={form} user={user} /> }
                                 </li>
                             ))}
                         </ul>
