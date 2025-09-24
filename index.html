@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grade Form App</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+
+        body {
+            background-color: hsl(0, 0%, 8%);
+            color: hsl(0, 0%, 100%);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .container {
+            background-color: hsl(0, 0%, 12%);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 0 2rem #4f2f4f;
+        }
+
+        .btn-primary, .btn-success, .btn-secondary {
+            background-color: hsl(0, 0%, 20%);
+            color: hsl(0, 0%, 100%);
+            border: none;
+            border-radius: 8px;
+            padding: 1rem;
+            width: 100%;
+            margin: 0.5rem 0;
+            font-weight: 700;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .btn-primary:hover, .btn-success:hover, .btn-secondary:hover {
+            background-color: hsl(75, 94%, 57%);
+            color: hsl(0, 0%, 8%);
+        }
+
+        .btn-outline-danger {
+            color: hsl(0, 0%, 100%);
+            border-color: hsl(0, 0%, 100%);
+        }
+
+        .btn-outline-danger:hover {
+            background-color: hsl(0, 100%, 50%);
+            color: hsl(0, 0%, 100%);
+        }
+
+        .navbar {
+            background-color: hsl(0, 0%, 12%) !important;
+            border-bottom: 1px solid hsl(0, 0%, 20%);
+        }
+
+        .navbar-brand {
+            color: hsl(0, 0%, 100%) !important;
+        }
+
+        .form-control {
+            background-color: hsl(0, 0%, 20%);
+            color: hsl(0, 0%, 100%);
+            border: 1px solid hsl(0, 0%, 30%);
+        }
+
+        .form-control:focus {
+            background-color: hsl(0, 0%, 20%);
+            color: hsl(0, 0%, 100%);
+            border-color: hsl(75, 94%, 57%);
+            box-shadow: 0 0 0 0.25rem hsla(75, 94%, 57%, 0.25);
+        }
+
+        .form-control::placeholder {
+            color: hsl(75, 94%, 57%);
+            opacity: 0.5;
+        }
+        
+        .list-group-item {
+            background-color: hsl(0, 0%, 20%);
+            border: 1px solid hsl(0, 0%, 30%);
+            color: hsl(0, 0%, 100%);
+        }
+
+        h2, h3, h4 {
+            color: hsl(75, 94%, 57%);
+        }
+
+        a {
+            color: hsl(75, 94%, 57%);
+        }
+
+        a:hover {
+            color: hsl(75, 94%, 40%);
+        }
+
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Main App Component
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [view, setView] = useState('login'); // login, register, form, dashboard, master, forgotPassword, resetPassword, changePassword
+            const [forms, setForms] = useState([]);
+            const [users, setUsers] = useState([]);
+            const [recoveryEmail, setRecoveryEmail] = useState('');
+
+            useEffect(() => {
+                // Load users and forms from local storage on initial render
+                const storedUsers = localStorage.getItem('users');
+                if (storedUsers) {
+                    setUsers(JSON.parse(storedUsers));
+                }
+                const storedForms = localStorage.getItem('forms');
+                if (storedForms) {
+                    setForms(JSON.parse(storedForms));
+                }
+            }, []);
+
+            const handleLogin = (email, password) => {
+                if (email === 'master@account.com' && password === 'masterpassword') {
+                    setUser({ id: 0, firstName: 'Master', lastName: 'Account', email });
+                    setView('master');
+                    return;
+                }
+                const foundUser = users.find(u => u.email === email && u.password === password);
+                if (foundUser) {
+                    setUser(foundUser);
+                    setView('dashboard');
+                } else {
+                    alert('Invalid credentials');
+                }
+            };
+
+            const handleRegister = (firstName, lastName, email, password) => {
+                const existingUser = users.find(u => u.email === email);
+                if (existingUser) {
+                    alert('User with this email already exists');
+                    return;
+                }
+                const newUser = { id: Date.now(), firstName, lastName, email, password };
+                const updatedUsers = [...users, newUser];
+                setUsers(updatedUsers);
+                localStorage.setItem('users', JSON.stringify(updatedUsers));
+                setUser(newUser);
+                setView('dashboard');
+            };
+
+            const handleSaveForm = (formData) => {
+                const newForm = { userId: user.id, formData, date: new Date().toLocaleDateString() };
+                const updatedForms = [...forms, newForm];
+                setForms(updatedForms);
+                localStorage.setItem('forms', JSON.stringify(updatedForms));
+                setView('dashboard');
+            };
+
+            const handleLogout = () => {
+                setUser(null);
+                setView('login');
+            };
+
+            const handleForgotPassword = (email) => {
+                const foundUser = users.find(u => u.email === email);
+                if (foundUser) {
+                    setRecoveryEmail(email);
+                    alert('A password recovery link has been sent to your email.');
+                    setView('resetPassword');
+                } else {
+                    alert('User with this email does not exist');
+                }
+            };
+
+            const handleResetPassword = (password) => {
+                const updatedUsers = users.map(u => {
+                    if (u.email === recoveryEmail) {
+                        return { ...u, password };
+                    }
+                    return u;
+                });
+                setUsers(updatedUsers);
+                localStorage.setItem('users', JSON.stringify(updatedUsers));
+                setRecoveryEmail('');
+                setView('login');
+            };
+
+            const handleChangePassword = (currentPassword, newPassword) => {
+                const currentUser = users.find(u => u.id === user.id);
+                if (currentUser.password !== currentPassword) {
+                    alert('Incorrect current password');
+                    return;
+                }
+                const updatedUsers = users.map(u => {
+                    if (u.id === user.id) {
+                        return { ...u, password: newPassword };
+                    }
+                    return u;
+                });
+                setUsers(updatedUsers);
+                localStorage.setItem('users', JSON.stringify(updatedUsers));
+                alert('Password changed successfully');
+                setView('dashboard');
+            };
+
+            return (
+                <div className="container mt-5">
+                    <nav className="navbar navbar-expand-lg navbar-light bg-light mb-4">
+                        <div className="container-fluid d-flex justify-content-between">
+                            <div>
+                                <a className="navbar-brand" href="#">Grade Form App</a>
+                                {user && (
+                                    <button className="btn btn-secondary btn-sm me-2" onClick={() => setView('changePassword')}>Change Password</button>
+                                )}
+                            </div>
+                            {user && (
+                                <button className="btn btn-outline-danger btn-sm" onClick={handleLogout}>Logout</button>
+                            )}
+                        </div>
+                    </nav>
+
+                    {view === 'login' && <Login onLogin={handleLogin} onSwitchToRegister={() => setView('register')} onForgotPassword={() => setView('forgotPassword')} />}
+                    {view === 'register' && <Register onRegister={handleRegister} onSwitchToLogin={() => setView('login')} />}
+                    {view === 'dashboard' && <Dashboard user={user} forms={forms.filter(f => f.userId === user.id)} onNewForm={() => setView('form')} />}
+                    {view === 'form' && <Form user={user} onSave={handleSaveForm} />}
+                    {view === 'master' && <MasterDashboard forms={forms} users={users} />}
+                    {view === 'forgotPassword' && <ForgotPassword onForgotPassword={handleForgotPassword} onSwitchToLogin={() => setView('login')} />}
+                    {view === 'resetPassword' && <ResetPassword onResetPassword={handleResetPassword} />}
+                    {view === 'changePassword' && <ChangePassword onChangePassword={handleChangePassword} onCancel={() => setView('dashboard')} />}
+                </div>
+            );
+        };
+
+        // Login Component
+        const Login = ({ onLogin, onSwitchToRegister, onForgotPassword }) => {
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                onLogin(email, password);
+            };
+
+            return (
+                <div>
+                    <h2>Login</h2>
+                    <form onSubmit={handleSubmit}>
+                        <div className="mb-3">
+                            <label className="form-label">Email address</label>
+                            <input type="email" placeholder="Enter your email" className="form-control" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                        </div>
+                        <div className="mb-3">
+                            <label className="form-label">Password</label>
+                            <input type="password" placeholder="Enter your password" className="form-control" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                        </div>
+                        <button type="submit" className="btn btn-primary">Login</button>
+                        <p className="mt-3">
+                            Don't have an account? <a href="#" onClick={onSwitchToRegister}>Register here</a>
+                        </p>
+                        <p className="mt-3">
+                            Forgot Password? <a href="#" onClick={onForgotPassword}>Click here</a>
+                        </p>
+                    </form>
+                </div>
+            );
+        };
+
+        // Register Component
+        const Register = ({ onRegister, onSwitchToLogin }) => {
+            const [firstName, setFirstName] = useState('');
+            const [lastName, setLastName] = useState('');
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                onRegister(firstName, lastName, email, password);
+            };
+
+            return (
+                <div>
+                    <h2>Register</h2>
+                    <form onSubmit={handleSubmit}>
+                        <div className="mb-3">
+                            <label className="form-label">First Name</label>
+                            <input type="text" className="form-control" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                        </div>
+                        <div className="mb-3">
+                            <label className="form-label">Last Name</label>
+                            <input type="text" className="form-control" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                        </div>
+                        <div className="mb-3">
+                            <label className="form-label">Email address</label>
+                            <input type="email" className="form-control" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                        </div>
+                        <div className="mb-3">
+                            <label className="form-label">Password</label>
+                            <input type="password" className="form-control" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                        </div>
+                        <button type="submit" className="btn btn-primary">Register</button>
+                        <p className="mt-3">
+                            Already have an account? <a href="#" onClick={onSwitchToLogin}>Login here</a>
+                        </p>
+                    </form>
+                </div>
+            );
+        };
+
+        // Dashboard Component
+        const Dashboard = ({ user, forms, onNewForm }) => {
+            return (
+                <div>
+                    <h2>Welcome, {user.firstName} {user.lastName}!</h2>
+                    <button className="btn btn-primary mb-4" onClick={onNewForm}>Open New Form</button>
+                    <h3>Your Previous Forms</h3>
+                    {forms.length > 0 ? (
+                        <ul className="list-group">
+                            {forms.map((form, index) => (
+                                <li key={index} className="list-group-item">
+                                    <p><strong>Date:</strong> {form.date}</p>
+                                    <p><strong>Project/Course:</strong> {form.formData.projectOrCourse}</p>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p>You have no saved forms.</p>
+                    )}
+                </div>
+            );
+        };
+        
+        // Master Dashboard Component
+        const MasterDashboard = ({ forms, users }) => {
+            const getUserName = (userId) => {
+                const user = users.find(u => u.id === userId);
+                return user ? `${user.firstName} ${user.lastName}` : 'Unknown User';
+            };
+
+            return (
+                <div>
+                    <h2>Master Dashboard</h2>
+                    <h3>All Submitted Forms</h3>
+                    {forms.length > 0 ? (
+                        <ul className="list-group">
+                            {forms.map((form, index) => (
+                                <li key={index} className="list-group-item">
+                                    <p><strong>User:</strong> {getUserName(form.userId)}</p>
+                                    <p><strong>Date:</strong> {form.date}</p>
+                                    <p><strong>Project/Course:</strong> {form.formData.projectOrCourse}</p>
+                                    {/* You can display more form data here */}
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p>No forms have been submitted yet.</p>
+                    )}
+                </div>
+            );
+        };
+
+        // Form Component
+        const Form = ({ user, onSave }) => {
+            const [formData, setFormData] = useState({
+                name: `${user.firstName} ${user.lastName}`,
+                date: new Date().toLocaleDateString(),
+                projectOrCourse: '',
+                dailyGoal: '',
+                focusOn: '',
+                evidenceOfWork: '',
+                whatWentWell: '',
+                challenges: '',
+                helpNeeded: '',
+                nextSteps: '',
+                productivity: '',
+                focus: '',
+                overallSatisfaction: '',
+            });
+
+            const handleChange = (e) => {
+                const { name, value } = e.target;
+                setFormData(prev => ({ ...prev, [name]: value }));
+            };
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                onSave(formData);
+            };
+
+            return (
+                <form onSubmit={handleSubmit}>
+                    <h3>Daily Work & Project Log</h3>
+                    <div className="row mb-3">
+                        <div className="col">
+                            <label className="form-label">Name</label>
+                            <input type="text" name="name" className="form-control" value={formData.name} readOnly />
+                        </div>
+                        <div className="col">
+                            <label className="form-label">Date</label>
+                            <input type="text" name="date" className="form-control" value={formData.date} readOnly />
+                        </div>
+                        <div className="col">
+                            <label className="form-label">Project/Course</label>
+                            <input type="text" name="projectOrCourse" className="form-control" value={formData.projectOrCourse} onChange={handleChange} />
+                        </div>
+                    </div>
+
+                    <h4>1. Daily Goals & Progress</h4>
+                    <div className="mb-3">
+                        <label className="form-label">My main goal for today is:</label>
+                        <input type="text" name="dailyGoal" className="form-control" value={formData.dailyGoal} onChange={handleChange} />
+                    </div>
+                    <div className="mb-3">
+                        <label className="form-label">What I will focus on:</label>
+                        <textarea name="focusOn" className="form-control" value={formData.focusOn} onChange={handleChange}></textarea>
+                    </div>
+                    <div className="mb-3">
+                        <label className="form-label">Evidence of Work: (List links, file names, or a brief description of what you produced. Deliverables must be sent to me via Slack.)</label>
+                        <textarea name="evidenceOfWork" className="form-control" value={formData.evidenceOfWork} onChange={handleChange}></textarea>
+                    </div>
+
+                    <h4>2. Reflection & Next Steps</h4>
+                    <div className="mb-3">
+                        <label className="form-label">What went well today? (Wins!):</label>
+                        <input type="text" name="whatWentWell" className="form-control" value={formData.whatWentWell} onChange={handleChange} />
+                    </div>
+                    <div className="mb-3">
+                        <label className="form-label">What challenges did I face?:</label>
+                        <input type="text" name="challenges" className="form-control" value={formData.challenges} onChange={handleChange} />
+                    </div>
+                    <div className="mb-3">
+                        <label className="form-label">What do I need help with?:</label>
+                        <input type="text" name="helpNeeded" className="form-control" value={formData.helpNeeded} onChange={handleChange} />
+                    </div>
+                    <div className="mb-3">
+                        <label className="form-label">What are my next steps for tomorrow?:</label>
+                        <input type="text" name="nextSteps" className="form-control" value={formData.nextSteps} onChange={handleChange} />
+                    </div>
+
+                    <h4>3. Productivity & Self-Assessment</h4>
+                    <div className="mb-3">
+                        <label className="form-label">Productivity:</label>
+                        <select name="productivity" className="form-select" value={formData.productivity} onChange={handleChange}>
+                            <option value="">Select...</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
+                    <div className="mb-3">
+                        <label className="form-label">Focus:</label>
+                        <select name="focus" className="form-select" value={formData.focus} onChange={handleChange}>
+                            <option value="">Select...</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
+                    <div className="mb-3">
+                        <label className="form-label">Overall Satisfaction:</label>
+                        <select name="overallSatisfaction" className="form-select" value={formData.overallSatisfaction} onChange={handleChange}>
+                            <option value="">Select...</option>
+                            <option value="😞">😞</option>
+                            <option value="😐">😐</option>
+                            <option value="🙂">🙂</option>
+                            <option value="😃">😃</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" className="btn btn-success">Save and Send to Teacher</button>
+                </form>
+            );
+        };
+
+        // Forgot Password Component
+        const ForgotPassword = ({ onForgotPassword, onSwitchToLogin }) => {
+            const [email, setEmail] = useState('');
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                onForgotPassword(email);
+            };
+
+            return (
+                <div>
+                    <h2>Forgot Password</h2>
+                    <form onSubmit={handleSubmit}>
+                        <div className="mb-3">
+                            <label className="form-label">Email address</label>
+                            <input type="email" placeholder="Enter your email" className="form-control" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                        </div>
+                        <button type="submit" className="btn btn-primary">Submit</button>
+                        <p className="mt-3">
+                            <a href="#" onClick={onSwitchToLogin}>Back to Login</a>
+                        </p>
+                    </form>
+                </div>
+            );
+        };
+
+        // Reset Password Component
+        const ResetPassword = ({ onResetPassword }) => {
+            const [password, setPassword] = useState('');
+            const [confirmPassword, setConfirmPassword] = useState('');
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (password !== confirmPassword) {
+                    alert('Passwords do not match');
+                    return;
+                }
+                onResetPassword(password);
+            };
+
+            return (
+                <div>
+                    <h2>Reset Password</h2>
+                    <form onSubmit={handleSubmit}>
+                        <div className="mb-3">
+                            <label className="form-label">New Password</label>
+                            <input type="password" placeholder="Enter new password" className="form-control" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                        </div>
+                        <div className="mb-3">
+                            <label className="form-label">Confirm New Password</label>
+                            <input type="password" placeholder="Confirm new password" className="form-control" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+                        </div>
+                        <button type="submit" className="btn btn-primary">Reset Password</button>
+                    </form>
+                </div>
+            );
+        };
+
+        // Change Password Component
+        const ChangePassword = ({ onChangePassword, onCancel }) => {
+            const [currentPassword, setCurrentPassword] = useState('');
+            const [newPassword, setNewPassword] = useState('');
+            const [confirmNewPassword, setConfirmNewPassword] = useState('');
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (newPassword !== confirmNewPassword) {
+                    alert('New passwords do not match');
+                    return;
+                }
+                onChangePassword(currentPassword, newPassword);
+            };
+
+            return (
+                <div>
+                    <h2>Change Password</h2>
+                    <form onSubmit={handleSubmit}>
+                        <div className="mb-3">
+                            <label className="form-label">Current Password</label>
+                            <input type="password" placeholder="Enter current password" className="form-control" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
+                        </div>
+                        <div className="mb-3">
+                            <label className="form-label">New Password</label>
+                            <input type="password" placeholder="Enter new password" className="form-control" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
+                        </div>
+                        <div className="mb-3">
+                            <label className="form-label">Confirm New Password</label>
+                            <input type="password" placeholder="Confirm new password" className="form-control" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} required />
+                        </div>
+                        <button type="submit" className="btn btn-primary">Change Password</button>
+                        <button type="button" className="btn btn-secondary mt-2" onClick={onCancel}>Cancel</button>
+                    </form>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
