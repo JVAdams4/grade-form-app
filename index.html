@@ -155,11 +155,23 @@
             };
 
             const handleSaveForm = (formData) => {
-                const newForm = { userId: user.id, formData, date: new Date().toLocaleDateString() };
+                const newForm = { id: Date.now(), userId: user.id, formData, date: new Date().toLocaleDateString(), feedback: { score: '', bonus: '', comments: '' } };
                 const updatedForms = [...forms, newForm];
                 setForms(updatedForms);
                 localStorage.setItem('forms', JSON.stringify(updatedForms));
                 setView('dashboard');
+            };
+
+            const handleSaveFeedback = (formId, feedback) => {
+                const updatedForms = forms.map(f => {
+                    if (f.id === formId) {
+                        return { ...f, feedback };
+                    }
+                    return f;
+                });
+                setForms(updatedForms);
+                localStorage.setItem('forms', JSON.stringify(updatedForms));
+                alert('Feedback saved successfully');
             };
 
             const handleLogout = () => {
@@ -229,7 +241,7 @@
                     {view === 'register' && <Register onRegister={handleRegister} onSwitchToLogin={() => setView('login')} />}
                     {view === 'dashboard' && <Dashboard user={user} forms={forms.filter(f => f.userId === user.id)} onNewForm={() => setView('form')} />}
                     {view === 'form' && <Form user={user} onSave={handleSaveForm} />}
-                    {view === 'master' && <MasterDashboard forms={forms} users={users} />}
+                    {view === 'master' && <MasterDashboard forms={forms} users={users} onSaveFeedback={handleSaveFeedback} user={user} />}
                     {view === 'forgotPassword' && <ForgotPassword onForgotPassword={handleForgotPassword} onSwitchToLogin={() => setView('login')} />}
                     {view === 'resetPassword' && <ResetPassword onResetPassword={handleResetPassword} />}
                     {view === 'changePassword' && <ChangePassword onChangePassword={handleChangePassword} onCancel={() => setView('dashboard')} />}
@@ -325,6 +337,7 @@
                                 <li key={index} className="list-group-item">
                                     <p><strong>Date:</strong> {form.date}</p>
                                     <p><strong>Project/Course:</strong> {form.formData.projectOrCourse}</p>
+                                    <InstructorFeedback form={form} user={user} />
                                 </li>
                             ))}
                         </ul>
@@ -336,7 +349,7 @@
         };
         
         // Master Dashboard Component
-        const MasterDashboard = ({ forms, users }) => {
+        const MasterDashboard = ({ forms, users, onSaveFeedback, user }) => {
             const getUserName = (userId) => {
                 const user = users.find(u => u.id === userId);
                 return user ? `${user.firstName} ${user.lastName}` : 'Unknown User';
@@ -354,6 +367,7 @@
                                     <p><strong>Date:</strong> {form.date}</p>
                                     <p><strong>Project/Course:</strong> {form.formData.projectOrCourse}</p>
                                     {/* You can display more form data here */}
+                                    <InstructorFeedback form={form} user={user} onSaveFeedback={onSaveFeedback} />
                                 </li>
                             ))}
                         </ul>
@@ -569,6 +583,48 @@
                         <button type="submit" className="btn btn-primary">Change Password</button>
                         <button type="button" className="btn btn-secondary mt-2" onClick={onCancel}>Cancel</button>
                     </form>
+                </div>
+            );
+        };
+
+        // Instructor Feedback Component
+        const InstructorFeedback = ({ form, user, onSaveFeedback }) => {
+            const [feedback, setFeedback] = useState(form.feedback || { score: '', bonus: '', comments: '' });
+
+            const handleChange = (e) => {
+                const { name, value } = e.target;
+                setFeedback(prev => ({ ...prev, [name]: value }));
+            };
+
+            const handleSave = () => {
+                onSaveFeedback(form.id, feedback);
+            };
+
+            const isMaster = user.email === 'master@account.com';
+
+            return (
+                <div className="mt-4">
+                    <h4>Instructor Feedback & Grading</h4>
+                    <p><strong>3-2-1 Daily Work Grading System</strong></p>
+                    <p>3 – Mastery (Full Points): Work is complete, thorough, and meets or exceeds expectations. You can explain what you did and why.</p>
+                    <p>2 – Needs Improvement (Partial Points): Work is mostly done but missing small details, polish, or corrections.</p>
+                    <p>1 – Incomplete (Minimal Points): Little to no progress shown for the day. The goal is not complete or is off-topic.</p>
+                    <p>Bonus Points: Earned for going above expectations.</p>
+                    <div className="row mb-3">
+                        <div className="col-auto">
+                            <label className="form-label">Instructor's Score:</label>
+                            <input type="text" name="score" className="form-control" value={feedback.score} onChange={handleChange} readOnly={!isMaster} style={{ width: '5rem' }} />
+                        </div>
+                        <div className="col-auto">
+                            <label className="form-label">/ 3 + Bonus Points</label>
+                            <input type="text" name="bonus" className="form-control" value={feedback.bonus} onChange={handleChange} readOnly={!isMaster} style={{ width: '5rem' }} />
+                        </div>
+                    </div>
+                    <div className="mb-3">
+                        <label className="form-label">Comments:</label>
+                        <textarea name="comments" className="form-control" value={feedback.comments} onChange={handleChange} readOnly={!isMaster} rows="3"></textarea>
+                    </div>
+                    {isMaster && <button className="btn btn-success" onClick={handleSave}>Save Feedback</button>}
                 </div>
             );
         };

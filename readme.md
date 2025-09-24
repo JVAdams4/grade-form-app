@@ -259,3 +259,21 @@ export default Dashboard;
 ```
 
 // ... (rest of the components)
+
+## Instructor Feedback
+
+This feature allows a "master account" to provide feedback and a grade for each submitted form.
+
+### Features:
+
+*   **Feedback Form:** A dedicated form for instructors to provide a score and comments.
+*   **Master Account Access:** Only the master account (`master@account.com`) can fill out the feedback form.
+*   **Viewable by Users:** Students can view the feedback on their submitted forms, but they cannot edit it.
+*   **Grading System:** The feedback form includes a 3-2-1 grading system for daily work.
+
+### How it works:
+
+1.  A student submits a "Daily Work & Project Log" form.
+2.  The master account can view all submitted forms in the "Master Dashboard".
+3.  For each form, the master account can fill out the "Instructor Feedback & Grading" section and save it.
+4.  The student can then see the feedback on their dashboard, attached to the corresponding form.
