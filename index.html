@@ -37,6 +37,11 @@
             background-color: hsl(75, 94%, 57%);
             color: hsl(0, 0%, 8%);
         }
+        
+        .btn-sm {
+            width: auto;
+            padding: 0.5rem 1rem;
+        }
 
         .btn-outline-danger {
             color: hsl(0, 0%, 100%);
@@ -57,13 +62,13 @@
             color: hsl(0, 0%, 100%) !important;
         }
 
-        .form-control {
+        .form-control, .form-select {
             background-color: hsl(0, 0%, 20%);
             color: hsl(0, 0%, 100%);
             border: 1px solid hsl(0, 0%, 30%);
         }
 
-        .form-control:focus {
+        .form-control:focus, .form-select:focus {
             background-color: hsl(0, 0%, 20%);
             color: hsl(0, 0%, 100%);
             border-color: hsl(75, 94%, 57%);
@@ -79,6 +84,11 @@
             background-color: hsl(0, 0%, 20%);
             border: 1px solid hsl(0, 0%, 30%);
             color: hsl(0, 0%, 100%);
+            cursor: pointer;
+        }
+        
+        .list-group-item:hover {
+            background-color: hsl(0, 0%, 25%);
         }
 
         h2, h3, h4 {
@@ -91,6 +101,29 @@
 
         a:hover {
             color: hsl(75, 94%, 40%);
+        }
+        
+        .graded-status {
+            color: hsl(120, 61%, 50%);
+            font-weight: bold;
+            margin-left: 1rem;
+        }
+        
+        .qa-pair {
+            margin-bottom: 1rem;
+        }
+
+        .qa-pair label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+
+        .qa-pair p {
+            background-color: hsl(0, 0%, 16%);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            white-space: pre-wrap; /* To preserve whitespace and newlines in answers */
         }
 
     </style>
@@ -118,6 +151,11 @@
                 const storedUsers = localStorage.getItem('users');
                 if (storedUsers) {
                     setUsers(JSON.parse(storedUsers));
+                } else {
+                    // Seed with a sample user for demonstration
+                    const sampleUser = { id: 1, firstName: 'John', lastName: 'Doe', email: 'john.doe@example.com', password: 'password' };
+                    setUsers([sampleUser]);
+                    localStorage.setItem('users', JSON.stringify([sampleUser]));
                 }
                 const storedForms = localStorage.getItem('forms');
                 if (storedForms) {
@@ -155,7 +193,14 @@
             };
 
             const handleSaveForm = (formData) => {
-                const newForm = { id: Date.now(), userId: user.id, formData, date: new Date().toLocaleDateString(), feedback: { score: '', bonus: '', comments: '' } };
+                const newForm = { 
+                    id: Date.now(), 
+                    userId: user.id, 
+                    userFullName: `${user.firstName} ${user.lastName}`,
+                    formData, 
+                    date: new Date().toLocaleDateString(), 
+                    feedback: null 
+                };
                 const updatedForms = [...forms, newForm];
                 setForms(updatedForms);
                 localStorage.setItem('forms', JSON.stringify(updatedForms));
@@ -181,7 +226,7 @@
 
             const handleForgotPassword = (email) => {
                 const foundUser = users.find(u => u.email === email);
-                if (foundUser) {
+                if (foundUser || email === 'master@account.com') {
                     setRecoveryEmail(email);
                     alert('A password recovery link has been sent to your email.');
                     setView('resetPassword');
@@ -204,6 +249,10 @@
             };
 
             const handleChangePassword = (currentPassword, newPassword) => {
+                if (user.email === 'master@account.com') {
+                    alert("Master password cannot be changed through this form.");
+                    return;
+                }
                 const currentUser = users.find(u => u.id === user.id);
                 if (currentUser.password !== currentPassword) {
                     alert('Incorrect current password');
@@ -218,22 +267,26 @@
                 setUsers(updatedUsers);
                 localStorage.setItem('users', JSON.stringify(updatedUsers));
                 alert('Password changed successfully');
-                setView('dashboard');
+                setView(user.email === 'master@account.com' ? 'master' : 'dashboard');
             };
+            
+            const handleSetView = (newView) => {
+                setView(newView);
+            }
 
             return (
                 <div className="container mt-5">
                     <nav className="navbar navbar-expand-lg navbar-light bg-light mb-4">
-                        <div className="container-fluid d-flex justify-content-between">
-                            <div>
-                                <a className="navbar-brand" href="#">Grade Form App</a>
+                        <div className="container-fluid">
+                            <a className="navbar-brand" href="#" onClick={() => user ? (user.email === 'master@account.com' ? setView('master') : setView('dashboard')) : setView('login')}>Grade Form App</a>
+                            <div className="d-flex align-items-center">
                                 {user && (
-                                    <button className="btn btn-secondary btn-sm me-2" onClick={() => setView('changePassword')}>Change Password</button>
+                                    <button className="btn btn-secondary btn-sm me-3" onClick={() => setView('changePassword')}>Change Password</button>
+                                )}
+                                {user && (
+                                    <button className="btn btn-outline-danger btn-sm" onClick={handleLogout}>Logout</button>
                                 )}
                             </div>
-                            {user && (
-                                <button className="btn btn-outline-danger btn-sm" onClick={handleLogout}>Logout</button>
-                            )}
                         </div>
                     </nav>
 
@@ -241,10 +294,10 @@
                     {view === 'register' && <Register onRegister={handleRegister} onSwitchToLogin={() => setView('login')} />}
                     {view === 'dashboard' && <Dashboard user={user} forms={forms.filter(f => f.userId === user.id)} onNewForm={() => setView('form')} />}
                     {view === 'form' && <Form user={user} onSave={handleSaveForm} />}
-                    {view === 'master' && <MasterDashboard forms={forms} users={users} onSaveFeedback={handleSaveFeedback} user={user} />}
+                    {view === 'master' && <MasterDashboard users={users.filter(u => u.email !== 'master@account.com')} forms={forms} onSaveFeedback={handleSaveFeedback} masterUser={user} />}
                     {view === 'forgotPassword' && <ForgotPassword onForgotPassword={handleForgotPassword} onSwitchToLogin={() => setView('login')} />}
                     {view === 'resetPassword' && <ResetPassword onResetPassword={handleResetPassword} />}
-                    {view === 'changePassword' && <ChangePassword onChangePassword={handleChangePassword} onCancel={() => setView('dashboard')} />}
+                    {view === 'changePassword' && <ChangePassword onChangePassword={handleChangePassword} onCancel={() => setView(user.email === 'master@account.com' ? 'master' : 'dashboard')} />}
                 </div>
             );
         };
@@ -324,8 +377,14 @@
             );
         };
 
-        // Dashboard Component
+        // User Dashboard Component
         const Dashboard = ({ user, forms, onNewForm }) => {
+            const [selectedForm, setSelectedForm] = useState(null);
+
+            if (selectedForm) {
+                return <FormDetailView form={selectedForm} user={user} onBack={() => setSelectedForm(null)} />;
+            }
+
             return (
                 <div>
                     <h2>Welcome, {user.firstName} {user.lastName}!</h2>
@@ -333,11 +392,10 @@
                     <h3>Your Previous Forms</h3>
                     {forms.length > 0 ? (
                         <ul className="list-group">
-                            {forms.map((form, index) => (
-                                <li key={index} className="list-group-item">
-                                    <p><strong>Date:</strong> {form.date}</p>
-                                    <p><strong>Project/Course:</strong> {form.formData.projectOrCourse}</p>
-                                    { (form.feedback.score || form.feedback.comments) && <InstructorFeedback form={form} user={user} /> }
+                            {forms.map((form) => (
+                                <li key={form.id} className="list-group-item d-flex justify-content-between align-items-center" onClick={() => setSelectedForm(form)}>
+                                    <span>{`${form.userFullName} Daily Work Log (${form.date})`}</span>
+                                    {form.feedback && <span className="graded-status">Graded</span>}
                                 </li>
                             ))}
                         </ul>
@@ -349,31 +407,123 @@
         };
         
         // Master Dashboard Component
-        const MasterDashboard = ({ forms, users, onSaveFeedback, user }) => {
-            const getUserName = (userId) => {
-                const user = users.find(u => u.id === userId);
-                return user ? `${user.firstName} ${user.lastName}` : 'Unknown User';
-            };
+        const MasterDashboard = ({ users, forms, onSaveFeedback, masterUser }) => {
+            const [selectedUser, setSelectedUser] = useState(null);
+
+            if (selectedUser) {
+                return <UserFormsView user={selectedUser} forms={forms.filter(f => f.userId === selectedUser.id)} onBack={() => setSelectedUser(null)} masterUser={masterUser} onSaveFeedback={onSaveFeedback} />;
+            }
 
             return (
                 <div>
                     <h2>Master Dashboard</h2>
-                    <h3>All Submitted Forms</h3>
-                    {forms.length > 0 ? (
+                    <h3>All Users</h3>
+                    {users.length > 0 ? (
                         <ul className="list-group">
-                            {forms.map((form, index) => (
-                                <li key={index} className="list-group-item">
-                                    <p><strong>User:</strong> {getUserName(form.userId)}</p>
-                                    <p><strong>Date:</strong> {form.date}</p>
-                                    <p><strong>Project/Course:</strong> {form.formData.projectOrCourse}</p>
-                                    {/* You can display more form data here */}
-                                    <InstructorFeedback form={form} user={user} onSaveFeedback={onSaveFeedback} />
+                            {users.map((user) => (
+                                <li key={user.id} className="list-group-item" onClick={() => setSelectedUser(user)}>
+                                    {user.firstName} {user.lastName}
                                 </li>
                             ))}
                         </ul>
                     ) : (
-                        <p>No forms have been submitted yet.</p>
+                        <p>No users have registered yet.</p>
                     )}
+                </div>
+            );
+        };
+
+        // View for a specific user's forms (for Master account)
+        const UserFormsView = ({ user, forms, onBack, masterUser, onSaveFeedback }) => {
+            const [selectedForm, setSelectedForm] = useState(null);
+
+            if (selectedForm) {
+                return <FormDetailView form={selectedForm} user={masterUser} onBack={() => setSelectedForm(null)} onSaveFeedback={onSaveFeedback} />;
+            }
+
+            return (
+                <div>
+                    <button className="btn btn-secondary mb-3" onClick={onBack}>Back to Users List</button>
+                    <h3>Forms for {user.firstName} {user.lastName}</h3>
+                    {forms.length > 0 ? (
+                        <ul className="list-group">
+                            {forms.map((form) => (
+                                <li key={form.id} className="list-group-item d-flex justify-content-between align-items-center" onClick={() => setSelectedForm(form)}>
+                                    <span>{`${form.userFullName} Daily Work Log (${form.date})`}</span>
+                                    {form.feedback && <span className="graded-status">Graded</span>}
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p>This user has no saved forms.</p>
+                    )}
+                </div>
+            );
+        };
+
+        // Component to display the details of a single form
+        const FormDetailView = ({ form, user, onBack, onSaveFeedback }) => {
+            const isMaster = user.email === 'master@account.com';
+            const { formData } = form;
+
+            return (
+                <div>
+                    <button className="btn btn-secondary mb-3" onClick={onBack}>Back to List</button>
+                    <h3>{`${form.userFullName} Daily Work Log (${form.date})`}</h3>
+                    
+                    <div className="p-3 rounded" style={{backgroundColor: 'hsl(0, 0%, 10%)'}}>
+                        <h4>1. Daily Goals & Progress</h4>
+                        <div className="qa-pair">
+                            <label>My main goal for today is:</label>
+                            <p>{formData.dailyGoal || 'No answer provided'}</p>
+                        </div>
+                        <div className="qa-pair">
+                            <label>What I will focus on:</label>
+                            <p>{formData.focusOn || 'No answer provided'}</p>
+                        </div>
+                        <div className="qa-pair">
+                            <label>Evidence of Work: (List links, file names, or a brief description of what you produced. Deliverables must be sent to me via Slack.)</label>
+                            <p>{formData.evidenceOfWork || 'No answer provided'}</p>
+                        </div>
+
+                        <hr style={{borderColor: 'hsl(0, 0%, 30%)'}}/>
+
+                        <h4>2. Reflection & Next Steps</h4>
+                        <div className="qa-pair">
+                            <label>What went well today? (Wins!):</label>
+                            <p>{formData.whatWentWell || 'No answer provided'}</p>
+                        </div>
+                        <div className="qa-pair">
+                            <label>What challenges did I face?:</label>
+                            <p>{formData.challenges || 'No answer provided'}</p>
+                        </div>
+                        <div className="qa-pair">
+                            <label>What do I need help with?:</label>
+                            <p>{formData.helpNeeded || 'No answer provided'}</p>
+                        </div>
+                        <div className="qa-pair">
+                            <label>What are my next steps for tomorrow?:</label>
+                            <p>{formData.nextSteps || 'No answer provided'}</p>
+                        </div>
+
+                        <hr style={{borderColor: 'hsl(0, 0%, 30%)'}}/>
+
+                        <h4>3. Productivity & Self-Assessment</h4>
+                        <div className="qa-pair">
+                            <label>Productivity:</label>
+                            <p>{formData.productivity || 'No answer provided'}</p>
+                        </div>
+                        <div className="qa-pair">
+                            <label>Focus:</label>
+                            <p>{formData.focus || 'No answer provided'}</p>
+                        </div>
+                        <div className="qa-pair">
+                            <label>Overall Satisfaction:</label>
+                            <p>{formData.overallSatisfaction || 'No answer provided'}</p>
+                        </div>
+                    </div>
+
+                    {(isMaster || form.feedback) && <InstructorFeedback form={form} user={user} onSaveFeedback={onSaveFeedback} />}
                 </div>
             );
         };
@@ -381,9 +531,6 @@
         // Form Component
         const Form = ({ user, onSave }) => {
             const [formData, setFormData] = useState({
-                name: `${user.firstName} ${user.lastName}`,
-                date: new Date().toLocaleDateString(),
-                projectOrCourse: '',
                 dailyGoal: '',
                 focusOn: '',
                 evidenceOfWork: '',
@@ -412,15 +559,11 @@
                     <div className="row mb-3">
                         <div className="col">
                             <label className="form-label">Name</label>
-                            <input type="text" name="name" className="form-control" value={formData.name} readOnly />
+                            <input type="text" name="name" className="form-control" value={`${user.firstName} ${user.lastName}`} readOnly />
                         </div>
                         <div className="col">
                             <label className="form-label">Date</label>
-                            <input type="text" name="date" className="form-control" value={formData.date} readOnly />
-                        </div>
-                        <div className="col">
-                            <label className="form-label">Project/Course</label>
-                            <input type="text" name="projectOrCourse" className="form-control" value={formData.projectOrCourse} onChange={handleChange} />
+                            <input type="text" name="date" className="form-control" value={new Date().toLocaleDateString()} readOnly />
                         </div>
                     </div>
 
@@ -603,20 +746,23 @@
             const isMaster = user.email === 'master@account.com';
 
             return (
-                <div className="mt-4">
+                <div className="mt-4 p-3 rounded" style={{backgroundColor: 'hsl(0, 0%, 16%)'}}>
                     <h4>Instructor Feedback & Grading</h4>
                     <p><strong>3-2-1 Daily Work Grading System</strong></p>
                     <p>3 – Mastery (Full Points): Work is complete, thorough, and meets or exceeds expectations. You can explain what you did and why.</p>
                     <p>2 – Needs Improvement (Partial Points): Work is mostly done but missing small details, polish, or corrections.</p>
                     <p>1 – Incomplete (Minimal Points): Little to no progress shown for the day. The goal is not complete or is off-topic.</p>
                     <p>Bonus Points: Earned for going above expectations.</p>
-                    <div className="row mb-3">
+                    <div className="row mb-3 align-items-end">
                         <div className="col-auto">
                             <label className="form-label">Instructor's Score:</label>
                             <input type="text" name="score" className="form-control" value={feedback.score} onChange={handleChange} readOnly={!isMaster} style={{ width: '5rem' }} />
                         </div>
+                        <div className="col-auto ps-0">
+                            <span className="fs-5">/ 3</span>
+                        </div>
                         <div className="col-auto">
-                            <label className="form-label">/ 3 + Bonus Points</label>
+                            <label className="form-label">+ Bonus Points</label>
                             <input type="text" name="bonus" className="form-control" value={feedback.bonus} onChange={handleChange} readOnly={!isMaster} style={{ width: '5rem' }} />
                         </div>
                     </div>
