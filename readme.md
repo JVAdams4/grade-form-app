@@ -41,278 +41,262 @@ This is a web application for students to submit daily work logs and for an inst
 
 # Appendix: Full-Stack (MERN) Implementation Guide
 
-This section contains the original code and structure for a full-stack web application using the MERN stack (MongoDB, Express, React, Node.js). This is for your reference if you are able to use Node.js and npm in the future.
+This section provides a more detailed blueprint for building a full-stack version of this application with a **MongoDB** database, an **Express.js** backend, and a **React** frontend.
 
-## Project Structure
+## Updated Project Structure
+
+This structure includes more descriptive components for clarity.
 
 ```
 grade-form-app/
-├── client/
-│   ├── public/
-│   │   └── index.html
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── ChangePassword.tsx
-│   │   │   ├── Dashboard.tsx
-│   │   │   ├── ForgotPassword.tsx
-│   │   │   ├── Form.tsx
-│   │   │   ├── Login.tsx
-│   │   │   ├── MasterDashboard.tsx
-│   │   │   ├── Register.tsx
-│   │   │   └── ResetPassword.tsx
-│   │   ├── App.tsx
-│   │   ├── index.css
-│   │   └── index.tsx
-│   ├── package.json
-│   └── tsconfig.json
-└── server/
-    ├── src/
+├── client/ (React)
+│   └── src/
+│       ├── components/
+│       │   ├── auth/ (Login, Register, etc.)
+│       │   ├── dashboard/ (Dashboard, FormDetailView)
+│       │   └── master/ (MasterDashboard, UserFormsView)
+│       ├── services/ (api.ts for Axios calls)
+│       ├── App.tsx
+│       └── ...
+└── server/ (Node.js/Express)
+    ├── models/ (Mongoose Schemas)
+    │   ├── User.ts
+    │   └── Form.ts
+    ├── routes/ (API Endpoints)
     │   ├── auth.ts
-    │   ├── database.ts
-    │   ├── forms.ts
-    │   └── index.ts
-    ├── package.json
-    └── tsconfig.json
+    │   ├── users.ts
+    │   └── forms.ts
+    ├── middleware/
+    │   └── auth.ts (JWT verification)
+    └── index.ts
 ```
 
 ---
 
-## Server-side Code (`server` directory)
+## Server-Side (Express.js & Mongoose)
 
-### `package.json`
+### 1. Data Models (`server/models/`)
 
-```json
-{
-  "name": "server",
-  "version": "1.0.0",
-  "main": "dist/index.js",
-  "scripts": {
-    "start": "nodemon src/index.ts",
-    "build": "tsc"
-  },
-  "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "cors": "^2.8.5",
-    "express": "^4.17.1",
-    "jsonwebtoken": "^8.5.1",
-    "mongoose": "^6.0.12",
-    "nodemailer": "^6.7.2"
-  },
-  "devDependencies": {
-    "@types/bcryptjs": "^2.4.2",
-    "@types/cors": "^2.8.12",
-    "@types/express": "^4.17.13",
-    "@types/jsonwebtoken": "^8.5.5",
-    "@types/node": "^16.11.6",
-    "@types/nodemailer": "^6.4.4",
-    "nodemon": "^2.0.14",
-    "ts-node": "^10.4.0",
-    "typescript": "^4.4.4"
-  }
-}
+**`User.ts`**
+```typescript
+import { Schema, model } from 'mongoose';
+
+const UserSchema = new Schema({
+    firstName: { type: String, required: true },
+    lastName: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    isMaster: { type: Boolean, default: false } // To identify the master account
+});
+
+export default model('User', UserSchema);
 ```
 
-### `src/auth.ts`
+**`Form.ts`**
+```typescript
+import { Schema, model, Types } from 'mongoose';
 
+const FeedbackSchema = new Schema({
+    score: { type: String },
+    bonus: { type: String },
+    comments: { type: String }
+}, { _id: false });
+
+const FormSchema = new Schema({
+    userId: { type: Types.ObjectId, ref: 'User', required: true },
+    userFullName: { type: String, required: true },
+    date: { type: Date, default: Date.now },
+    formData: { type: Object, required: true }, // Stores the Q&A data
+    feedback: { type: FeedbackSchema, default: null } // Becomes non-null when graded
+});
+
+export default model('Form', FormSchema);
+```
+
+### 2. API Routes (`server/routes/`)
+
+**`users.ts` (For Master Account)**
 ```typescript
 import express from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import auth from '../middleware/auth'; // Middleware to check for master account
 import User from '../models/User';
-import nodemailer from 'nodemailer';
-import auth from '../middleware/auth';
+import Form from '../models/Form';
 
 const router = express.Router();
 
-// ... (Register and Login routes)
-
-// Forgot Password
-router.post('/forgot-password', async (req, res) => {
-    const { email } = req.body;
+// @route   GET /api/users
+// @desc    Get all users and their ungraded form counts
+// @access  Private (Master only)
+router.get('/', auth, async (req, res) => {
+    if (!req.user.isMaster) return res.status(403).json({ msg: 'Access denied' });
 
     try {
-        const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(400).json({ msg: 'User with this email does not exist' });
-        }
+        const users = await User.find({ isMaster: false }).select('-password');
+        const forms = await Form.find({ feedback: null });
 
-        const payload = {
-            user: {
-                id: user.id,
-            },
-        };
-
-        const token = jwt.sign(payload, 'yourJwtSecret', { expiresIn: '1h' });
-
-        const transporter = nodemailer.createTransport({
-            // configure your email provider here
+        const usersWithCounts = users.map(user => {
+            const ungradedCount = forms.filter(form => form.userId.equals(user._id)).length;
+            return { ...user.toObject(), ungradedCount };
         });
 
-        const mailOptions = {
-            from: 'your-email@example.com',
-            to: user.email,
-            subject: 'Password Reset Link',
-            html: `<p>Click <a href="http://localhost:3000/reset-password/${token}">here</a> to reset your password.</p>`
-        };
-
-        await transporter.sendMail(mailOptions);
-
-        res.json({ msg: 'Password reset link sent to your email' });
+        res.json(usersWithCounts);
     } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
-
-// Reset Password
-router.post('/reset-password/:token', async (req, res) => {
-    const { token } = req.params;
-    const { password } = req.body;
-
-    try {
-        const decoded = jwt.verify(token, 'yourJwtSecret');
-        const user = await User.findById(decoded.user.id);
-
-        if (!user) {
-            return res.status(400).json({ msg: 'Invalid token' });
-        }
-
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(password, salt);
-
-        await user.save();
-
-        res.json({ msg: 'Password reset successful' });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
-
-// Change Password
-router.post('/change-password', auth, async (req, res) => {
-    const { currentPassword, newPassword } = req.body;
-    const userId = req.user.id;
-
-    try {
-        const user = await User.findById(userId);
-        if (!user) {
-            return res.status(400).json({ msg: 'User not found' });
-        }
-
-        const isMatch = await bcrypt.compare(currentPassword, user.password);
-        if (!isMatch) {
-            return res.status(400).json({ msg: 'Incorrect current password' });
-        }
-
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(newPassword, salt);
-
-        await user.save();
-
-        res.json({ msg: 'Password changed successfully' });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
+        res.status(500).send('Server Error');
     }
 });
 
 export default router;
 ```
 
----
-
-## Client-side Code (`client` directory)
-
-### `src/App.tsx`
-
+**`forms.ts`**
 ```typescript
-import React from 'react';
-import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
-import Login from './components/Login';
-import Register from './components/Register';
-import Dashboard from './components/Dashboard';
-import Form from './components/Form';
-import MasterDashboard from './components/MasterDashboard';
-import ForgotPassword from './components/ForgotPassword';
-import ResetPassword from './components/ResetPassword';
-import ChangePassword from './components/ChangePassword';
+import express from 'express';
+import auth from '../middleware/auth';
+import Form from '../models/Form';
 
-const App: React.FC = () => {
-    // ... (state and functions)
+const router = express.Router();
 
-    return (
-        <Router>
-            <div className="container mt-5">
-                <nav className="navbar navbar-expand-lg navbar-light bg-light mb-4">
-                    <div className="container-fluid d-flex justify-content-between">
-                        <div>
-                            <a className="navbar-brand" href="#">Grade Form App</a>
-                            {user && (
-                                <Link to="/change-password">
-                                    <button className="btn btn-secondary btn-sm me-2">Change Password</button>
-                                </Link>
-                            )}
-                        </div>
-                        {user && (
-                            <button className="btn btn-outline-danger btn-sm" onClick={handleLogout}>Logout</button>
-                        )}
-                    </div>
-                </nav>
+// @route   POST /api/forms
+// @desc    Submit a new form
+// @access  Private
+router.post('/', auth, async (req, res) => { /* ... implementation ... */ });
 
-                <Routes>
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/register" element={<Register />} />
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/form" element={<Form />} />
-                    <Route path="/master" element={<MasterDashboard />} />
-                    <Route path="/forgot-password" element={<ForgotPassword />} />
-                    <Route path="/reset-password/:token" element={<ResetPassword />} />
-                    <Route path="/change-password" element={<ChangePassword />} />
-                    <Route path="/" element={<Login />} />
-                </Routes>
-            </div>
-        </Router>
-    );
-};
+// @route   GET /api/forms
+// @desc    Get all forms for the logged-in user
+// @access  Private
+router.get('/', auth, async (req, res) => { /* ... implementation ... */ });
 
-export default App;
+// @route   GET /api/forms/user/:userId
+// @desc    Get all forms for a specific user (for master)
+// @access  Private (Master only)
+router.get('/user/:userId', auth, async (req, res) => { /* ... implementation ... */ });
+
+// @route   GET /api/forms/:id
+// @desc    Get a single form by its ID
+// @access  Private
+router.get('/:id', auth, async (req, res) => { /* ... implementation ... */ });
+
+// @route   PUT /api/forms/:id/feedback
+// @desc    Add or update feedback for a form (for master)
+// @access  Private (Master only)
+router.put('/:id/feedback', auth, async (req, res) => { /* ... implementation ... */ });
+
+export default router;
 ```
 
-### `src/components/Dashboard.tsx`
+---
 
+## Client-Side (React)
+
+Below are more detailed component examples showing how they would interact with the backend API (e.g., using `axios`).
+
+### `MasterDashboard.tsx`
 ```typescript
-// ... (imports)
+import React, { useState, useEffect } from 'react';
+import api from '../services/api'; // Your API service
 
-const Dashboard: React.FC = () => {
-    // ... (state and functions)
+const MasterDashboard = () => {
+    const [users, setUsers] = useState([]);
+    const [selectedUser, setSelectedUser] = useState(null);
+
+    useEffect(() => {
+        const fetchUsers = async () => {
+            const res = await api.get('/users');
+            setUsers(res.data);
+        };
+        fetchUsers();
+    }, []);
+
+    if (selectedUser) {
+        // return <UserFormsView user={selectedUser} onBack={() => setSelectedUser(null)} />
+    }
 
     return (
         <div>
-            <h2>Welcome, {user.firstName} {user.lastName}!</h2>
-            <button className="btn btn-primary mb-4" onClick={onNewForm}>Open New Form</button>
-            {/* ... (rest of the component) */}
+            <h2>Master Dashboard</h2>
+            <ul className="list-group">
+                {users.map(user => (
+                    <li key={user._id} onClick={() => setSelectedUser(user)} className="list-group-item d-flex justify-content-between">
+                        {user.firstName} {user.lastName}
+                        {user.ungradedCount > 0 && <span className="ungraded-count">{user.ungradedCount}</span>}
+                    </li>
+                ))}
+            </ul>
         </div>
     );
 };
-
-export default Dashboard;
 ```
 
-## Instructor Feedback
+### `UserFormsView.tsx` (For Master)
+```typescript
+import React, { useState, useEffect } from 'react';
+import api from '../services/api';
 
-This feature allows a "master account" to provide feedback and a grade for each submitted form.
+const UserFormsView = ({ user, onBack }) => {
+    const [forms, setForms] = useState([]);
 
-### Features:
+    useEffect(() => {
+        const fetchForms = async () => {
+            const res = await api.get(`/forms/user/${user._id}`);
+            setForms(res.data);
+        };
+        fetchForms();
+    }, [user]);
 
-*   **Feedback Form:** A dedicated form for instructors to provide a score and comments.
-*   **Master Account Access:** Only the master account (`master@account.com`) can fill out the feedback form.
-*   **Viewable by Users:** Students can view the feedback on their submitted forms after the instructor has submitted it. The feedback is read-only for students.
-*   **Grading System:** The feedback form includes a 3-2-1 grading system for daily work.
+    return (
+        <div>
+            <button onClick={onBack}>Back</button>
+            <h3>Forms for {user.firstName}</h3>
+            <ul className="list-group">
+                {forms.map(form => (
+                    <li key={form._id} className="list-group-item d-flex justify-content-between">
+                        {`Daily Work Log (${new Date(form.date).toLocaleDateString()})`}
+                        {form.feedback 
+                            ? <span className="status-indicator graded-status">Graded</span> 
+                            : <span className="status-indicator not-graded-status">Not Graded</span>}
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+};
+```
 
-### How it works:
+### `FormDetailView.tsx`
+```typescript
+import React, { useState, useEffect } from 'react';
+import api from '../services/api';
 
-1.  A student submits a "Daily Work & Project Log" form.
-2.  The master account can view all submitted forms in the "Master Dashboard", where they can fill out the "Instructor Feedback & Grading" section for each form.
-3.  The feedback form is not visible to the student initially.
-4.  Once the master account saves the feedback (by providing a score or comments), the feedback section becomes visible to the student at the bottom of their submitted form on their dashboard.
+const FormDetailView = ({ formId, user, onBack }) => {
+    const [form, setForm] = useState(null);
+
+    useEffect(() => {
+        const fetchForm = async () => {
+            const res = await api.get(`/forms/${formId}`);
+            setForm(res.data);
+        };
+        fetchForm();
+    }, [formId]);
+
+    const handleSaveFeedback = async (feedbackData) => {
+        await api.put(`/forms/${form._id}/feedback`, feedbackData);
+        // ... refresh form data
+    };
+
+    if (!form) return <div>Loading...</div>;
+
+    return (
+        <div>
+            <button onClick={onBack}>Back</button>
+            <h3>{`${form.userFullName} Daily Work Log (${new Date(form.date).toLocaleDateString()})`}</h3>
+            {/* ... Render all Q&A pairs from form.formData ... */}
+
+            {/* 
+                Conditionally render the InstructorFeedback component.
+                - If master user, it's editable.
+                - If normal user and form.feedback exists, it's read-only.
+            */}
+        </div>
+    );
+};
+```
