@@ -103,10 +103,30 @@
             color: hsl(75, 94%, 40%);
         }
         
-        .graded-status {
-            color: hsl(120, 61%, 50%);
+        .status-indicator {
             font-weight: bold;
-            margin-left: 1rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .graded-status {
+            color: hsl(120, 100%, 85%);
+            background-color: hsla(120, 61%, 50%, 0.2);
+        }
+        
+        .not-graded-status {
+            color: hsl(3, 100%, 85%);
+            background-color: hsla(3, 70%, 50%, 0.2);
+        }
+
+        .ungraded-count {
+            background-color: hsl(3, 70%, 50%);
+            color: white;
+            border-radius: 50%;
+            padding: 0.1rem 0.5rem;
+            font-size: 0.9rem;
+            font-weight: bold;
         }
         
         .qa-pair {
@@ -124,6 +144,7 @@
             padding: 0.5rem 1rem;
             border-radius: 0.5rem;
             white-space: pre-wrap; /* To preserve whitespace and newlines in answers */
+            margin-bottom: 0;
         }
 
     </style>
@@ -395,7 +416,7 @@
                             {forms.map((form) => (
                                 <li key={form.id} className="list-group-item d-flex justify-content-between align-items-center" onClick={() => setSelectedForm(form)}>
                                     <span>{`${form.userFullName} Daily Work Log (${form.date})`}</span>
-                                    {form.feedback && <span className="graded-status">Graded</span>}
+                                    {form.feedback && <span className="status-indicator graded-status">Graded</span>}
                                 </li>
                             ))}
                         </ul>
@@ -410,6 +431,10 @@
         const MasterDashboard = ({ users, forms, onSaveFeedback, masterUser }) => {
             const [selectedUser, setSelectedUser] = useState(null);
 
+            const getUngradedCount = (userId) => {
+                return forms.filter(f => f.userId === userId && !f.feedback).length;
+            };
+
             if (selectedUser) {
                 return <UserFormsView user={selectedUser} forms={forms.filter(f => f.userId === selectedUser.id)} onBack={() => setSelectedUser(null)} masterUser={masterUser} onSaveFeedback={onSaveFeedback} />;
             }
@@ -420,11 +445,15 @@
                     <h3>All Users</h3>
                     {users.length > 0 ? (
                         <ul className="list-group">
-                            {users.map((user) => (
-                                <li key={user.id} className="list-group-item" onClick={() => setSelectedUser(user)}>
-                                    {user.firstName} {user.lastName}
-                                </li>
-                            ))}
+                            {users.map((user) => {
+                                const ungradedCount = getUngradedCount(user.id);
+                                return (
+                                    <li key={user.id} className="list-group-item d-flex justify-content-between align-items-center" onClick={() => setSelectedUser(user)}>
+                                        <span>{user.firstName} {user.lastName}</span>
+                                        {ungradedCount > 0 && <span className="ungraded-count">{ungradedCount}</span>}
+                                    </li>
+                                );
+                            })}
                         </ul>
                     ) : (
                         <p>No users have registered yet.</p>
@@ -450,7 +479,9 @@
                             {forms.map((form) => (
                                 <li key={form.id} className="list-group-item d-flex justify-content-between align-items-center" onClick={() => setSelectedForm(form)}>
                                     <span>{`${form.userFullName} Daily Work Log (${form.date})`}</span>
-                                    {form.feedback && <span className="graded-status">Graded</span>}
+                                    {form.feedback 
+                                        ? <span className="status-indicator graded-status">Graded</span> 
+                                        : <span className="status-indicator not-graded-status">Not Graded</span>}
                                 </li>
                             ))}
                         </ul>

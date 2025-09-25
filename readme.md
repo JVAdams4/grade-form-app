@@ -8,7 +8,7 @@ This is a web application for students to submit daily work logs and for an inst
 *   Password recovery and change password functionality.
 *   A "Daily Work & Project Log" form for users to submit.
 *   Separate dashboard views for regular users and a master account.
-*   A complete grading and feedback loop.
+*   A complete grading and feedback loop with status indicators.
 
 ---
 
@@ -27,11 +27,12 @@ This is a web application for students to submit daily work logs and for an inst
 ### Master Account (Instructor) Flow
 
 1.  **Login:** The instructor logs in using the master account credentials (`master@account.com`).
-2.  **Master Dashboard:** The master dashboard displays a list of all registered users by their first and last names.
-3.  **View User Submissions:** Clicking on a user's name opens a new view that lists all forms submitted by that specific user. This list is formatted the same way as the user's own dashboard, showing form titles and "Graded" statuses.
-4.  **View & Grade Form:** The instructor can click on any form in the list to view the student's full submission. The view shows each form question followed by the student's answer.
-5.  **Attach Feedback:** At the bottom of the student's form, the "Instructor Feedback & Grading" form is displayed. The instructor can fill out the score, bonus points, and comments.
-6.  **Save Feedback:** After filling out the feedback, the instructor clicks "Save Feedback". The student can then see this feedback when they view their submission.
+2.  **Master Dashboard:** The master dashboard displays a list of all registered users. Next to each user's name, a red badge will show the number of their forms that are waiting to be graded.
+3.  **View User Submissions:** Clicking on a user's name opens a new view that lists all forms submitted by that specific user.
+4.  **Form Statuses:** In this list, each form is clearly marked with either a green "Graded" status or a red "Not Graded" status.
+5.  **View & Grade Form:** The instructor can click on any form in the list to view the student's full submission. The view shows each form question followed by the student's answer.
+6.  **Attach Feedback:** At the bottom of the student's form, the "Instructor Feedback & Grading" form is displayed. The instructor can fill out the score, bonus points, and comments.
+7.  **Save Feedback:** After filling out the feedback, the instructor clicks "Save Feedback". The form's status will update to "Graded", and the student can then see this feedback when they view their submission.
 
 ---
 
